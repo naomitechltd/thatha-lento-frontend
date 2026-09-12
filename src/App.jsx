@@ -13,7 +13,7 @@ const PAY_DETAILS = {
   bank: "Thatha Lento Ltd.",
   account: "0000-0000-0000",
   bankName: "Capitec Bank",
-  swift: "PLCHXXXX",
+  swift: "CABLZAJJXXX",
 };
 const GENDERS = ["Male", "Female"];
 
