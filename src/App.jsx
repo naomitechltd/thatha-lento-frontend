@@ -8,14 +8,20 @@ import { ShoppingBag, Sun, Moon, Menu, X, Plus, Trash2, Bug, Package, Tag, User,
 --------------------------------------------------------- */
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
-const WHATSAPP_NUMBER = "+27 72 998 9988"; // placeholder — update with the real number
+const WHATSAPP_NUMBER = "10000000000"; // placeholder — update with the real number
 const PAY_DETAILS = {
   bank: "Thatha Lento Ltd.",
   account: "0000-0000-0000",
-  bankName: "Capitec Bank",
-  swift: "CABLZAJJXXX",
+  bankName: "Placeholder Bank",
+  swift: "PLCHXXXX",
 };
 const GENDERS = ["Male", "Female"];
+
+// Formats an amount with the store's currency symbol (fetched from
+// /settings, admin-editable — see AdminDashboard's "Store" tab).
+function money(symbol, amount) {
+  return `${symbol}${Number(amount).toFixed(2)}`;
+}
 
 /* ---------------- API helper ----------------
    Centralises fetch + auth header + error surfacing so every
@@ -313,6 +319,17 @@ function NavBar({ theme, mode, setMode, view, setView, cartCount, currentUser, c
 
 /* ---------------- Product card & placeholder swatch ---------------- */
 function ProductImage({ product, theme, height = 260 }) {
+  const [failed, setFailed] = useState(false);
+  if (product.imageUrl && !failed) {
+    return (
+      <img
+        src={product.imageUrl}
+        alt={product.name}
+        onError={() => setFailed(true)}
+        style={{ height, width: "100%", objectFit: "cover", border: `1px solid ${theme.border}`, display: "block" }}
+      />
+    );
+  }
   return (
     <div style={{ height, background: theme.bgSunken, display: "flex", alignItems: "center", justifyContent: "center", color: theme.textDim, fontFamily: "'Iowan Old Style', Georgia, serif", fontSize: 13, letterSpacing: "0.06em", border: `1px solid ${theme.border}`, textAlign: "center", padding: 12 }}>
       {product.name}
@@ -320,12 +337,13 @@ function ProductImage({ product, theme, height = 260 }) {
   );
 }
 
-function ProductCard({ product, theme, onOpen }) {
+function ProductCard({ product, theme, onOpen, currencySymbol }) {
   const discounted = product.special?.active ? +(product.price * (1 - product.special.percent / 100)).toFixed(2) : null;
+  const fallbackImage = product.imageUrl || Object.values(product.colorImages || {})[0] || "";
   return (
     <div onClick={() => onOpen(product)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ position: "relative" }}>
-        <ProductImage product={product} theme={theme} />
+        <ProductImage product={{ ...product, imageUrl: fallbackImage }} theme={theme} />
         {product.special?.active && (
           <div style={{ position: "absolute", top: 8, left: 8 }}>
             <Badge theme={theme} tone="danger">-{product.special.percent}%</Badge>
@@ -343,11 +361,11 @@ function ProductCard({ product, theme, onOpen }) {
         <div style={{ marginTop: 4, fontSize: 14 }}>
           {discounted ? (
             <>
-              <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 8 }}>${product.price}</span>
-              <span style={{ color: theme.accent, fontWeight: 700 }}>${discounted}</span>
+              <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 8 }}>{money(currencySymbol, product.price)}</span>
+              <span style={{ color: theme.accent, fontWeight: 700 }}>{money(currencySymbol, discounted)}</span>
             </>
           ) : (
-            <span>${product.price}</span>
+            <span>{money(currencySymbol, product.price)}</span>
           )}
         </div>
       </div>
@@ -356,7 +374,7 @@ function ProductCard({ product, theme, onOpen }) {
 }
 
 /* ---------------- Shop view ---------------- */
-function ShopView({ products, theme, view, setView, openProduct, footprint }) {
+function ShopView({ products, theme, view, setView, openProduct, footprint, currencySymbol }) {
   const gender = view.gender || "All";
   const filtered = products.filter((p) => (gender === "All" ? true : p.gender === gender));
 
@@ -380,7 +398,7 @@ function ShopView({ products, theme, view, setView, openProduct, footprint }) {
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 12.5, letterSpacing: "0.04em", opacity: 0.7, marginBottom: 12 }}>Picked for you, based on what you've viewed</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 18 }}>
-            {recommended.map((p) => <ProductCard key={p.id} product={p} theme={theme} onOpen={openProduct} />)}
+            {recommended.map((p) => <ProductCard key={p.id} product={p} theme={theme} onOpen={openProduct} currencySymbol={currencySymbol} />)}
           </div>
         </div>
       )}
@@ -410,7 +428,7 @@ function ShopView({ products, theme, view, setView, openProduct, footprint }) {
         <div style={{ opacity: 0.6, padding: "40px 0" }}>Nothing here yet — check back soon.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 22 }}>
-          {filtered.map((p) => <ProductCard key={p.id} product={p} theme={theme} onOpen={openProduct} />)}
+          {filtered.map((p) => <ProductCard key={p.id} product={p} theme={theme} onOpen={openProduct} currencySymbol={currencySymbol} />)}
         </div>
       )}
     </div>
@@ -418,11 +436,12 @@ function ShopView({ products, theme, view, setView, openProduct, footprint }) {
 }
 
 /* ---------------- Product detail ---------------- */
-function ProductDetail({ product, theme, onClose, addToCart }) {
+function ProductDetail({ product, theme, onClose, addToCart, currencySymbol }) {
   const [size, setSize] = useState(product.sizes[0] || "");
   const [color, setColor] = useState(product.colors[0] || "");
   const [qty, setQty] = useState(1);
   const discounted = product.special?.active ? +(product.price * (1 - product.special.percent / 100)).toFixed(2) : null;
+  const displayImage = (product.colorImages || {})[color] || product.imageUrl || "";
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "40px 16px" }} onClick={onClose}>
@@ -430,17 +449,17 @@ function ProductDetail({ product, theme, onClose, addToCart }) {
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: theme.text }}><X size={20} /></button>
         </div>
-        <ProductImage product={product} theme={theme} height={220} />
+        <ProductImage product={{ ...product, imageUrl: displayImage }} theme={theme} height={220} />
         <div style={{ marginTop: 16, fontSize: 22, fontFamily: "'Iowan Old Style', Georgia, serif" }}>{product.name}</div>
         <div style={{ opacity: 0.7, fontSize: 13.5, marginTop: 6 }}>{product.description}</div>
         <div style={{ marginTop: 12, fontSize: 17 }}>
           {discounted ? (
             <>
-              <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 8 }}>${product.price}</span>
-              <span style={{ color: theme.accent, fontWeight: 700 }}>${discounted}</span>
+              <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 8 }}>{money(currencySymbol, product.price)}</span>
+              <span style={{ color: theme.accent, fontWeight: 700 }}>{money(currencySymbol, discounted)}</span>
             </>
           ) : (
-            <span>${product.price}</span>
+            <span>{money(currencySymbol, product.price)}</span>
           )}
         </div>
 
@@ -491,7 +510,7 @@ function ProductDetail({ product, theme, onClose, addToCart }) {
 }
 
 /* ---------------- Cart view ---------------- */
-function CartView({ cart, theme, setView, removeFromCart, currentUser }) {
+function CartView({ cart, theme, setView, removeFromCart, currentUser, currencySymbol }) {
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "36px 20px 80px" }}>
@@ -511,14 +530,14 @@ function CartView({ cart, theme, setView, removeFromCart, currentUser }) {
                   <div style={{ fontSize: 12.5, opacity: 0.65 }}>{item.color} · {item.size} · qty {item.qty}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div>${(item.price * item.qty).toFixed(2)}</div>
+                  <div>{money(currencySymbol, item.price * item.qty)}</div>
                   <button onClick={() => removeFromCart(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: theme.danger }}><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20, fontSize: 16, fontWeight: 700 }}>
-            <span>Total</span><span>${total.toFixed(2)}</span>
+            <span>Total</span><span>{money(currencySymbol, total)}</span>
           </div>
           <div style={{ marginTop: 20 }}>
             <Button theme={theme} onClick={() => setView({ name: currentUser ? "checkout" : "login", redirectTo: "checkout" })}>Checkout</Button>
@@ -580,12 +599,12 @@ function LoginView({ theme, setView, onLogin, redirectTo }) {
 }
 
 /* ---------------- Checkout / payment placeholder ---------------- */
-function CheckoutView({ theme, cart, placeOrder, setView }) {
+function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Thatha Lento, here is my proof of payment for order total $" + total.toFixed(2))}`;
+  const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Thatha Lento, here is my proof of payment for order total " + money(currencySymbol, total))}`;
 
   if (cart.length === 0 && !placed) {
     return <div style={{ maxWidth: 600, margin: "0 auto", padding: "60px 20px" }}><div style={{ opacity: 0.7 }}>Your bag is empty.</div></div>;
@@ -615,11 +634,11 @@ function CheckoutView({ theme, cart, placeOrder, setView }) {
             {cart.map((item, idx) => (
               <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 6 }}>
                 <span>{item.name} ({item.color}, {item.size}) × {item.qty}</span>
-                <span>${(item.price * item.qty).toFixed(2)}</span>
+                <span>{money(currencySymbol, item.price * item.qty)}</span>
               </div>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, marginTop: 10, borderTop: `1px solid ${theme.border}`, paddingTop: 10 }}>
-              <span>Total</span><span>${total.toFixed(2)}</span>
+              <span>Total</span><span>{money(currencySymbol, total)}</span>
             </div>
             <div style={{ fontSize: 11, opacity: 0.5, marginTop: 8 }}>
               Final total is re-checked by the server at checkout.
@@ -664,7 +683,7 @@ function CheckoutView({ theme, cart, placeOrder, setView }) {
 }
 
 /* ---------------- Account view (orders + bug report) ---------------- */
-function AccountView({ theme, currentUser, myOrders, submitBug, onLogout }) {
+function AccountView({ theme, currentUser, myOrders, submitBug, onLogout, currencySymbol }) {
   const [bugText, setBugText] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -683,7 +702,7 @@ function AccountView({ theme, currentUser, myOrders, submitBug, onLogout }) {
             <div key={o.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 12, marginBottom: 8, fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>{new Date(o.created_at).toLocaleDateString()}</span>
-                <span>${o.total.toFixed(2)}</span>
+                <span>{money(currencySymbol, o.total)}</span>
               </div>
               <div style={{ opacity: 0.65, marginTop: 4 }}>{o.items.length} item(s) · {o.status}</div>
             </div>
@@ -777,7 +796,7 @@ function AdminLoginView({ theme, onAdminLogin }) {
 }
 
 /* ---------------- Admin dashboard ---------------- */
-function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, addProduct, updateProduct, deleteProduct, updateOrderStatus }) {
+function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, addProduct, updateProduct, deleteProduct, updateOrderStatus, currencySymbol, updateCurrency }) {
   const [tab, setTab] = useState(currentAdmin.role === "bugs" ? "bugs" : "products");
   const isFull = currentAdmin.role === "full";
 
@@ -788,6 +807,7 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
         { key: "specials", label: "Specials", icon: Tag },
         { key: "orders", label: "Orders", icon: ShoppingBag },
         { key: "bugs", label: "Bug reports", icon: Bug },
+        { key: "store", label: "Store", icon: Tag },
       ]
     : [{ key: "bugs", label: "Bug reports", icon: Bug }];
 
@@ -809,10 +829,37 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
           {products.length === 0 && <div style={{ opacity: 0.6 }}>No products yet.</div>}
           {products.map((p) => (
             <div key={p.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 14, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-              <div>
+              <div style={{ flex: "1 1 260px" }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
-                <div style={{ fontSize: 12.5, opacity: 0.65 }}>{p.gender} · ${p.price} · stock {p.stock} · sizes {p.sizes.join(", ")} · colours {p.colors.join(", ")}</div>
+                <div style={{ fontSize: 12.5, opacity: 0.65 }}>{p.gender} · {money(currencySymbol, p.price)} · stock {p.stock} · sizes {p.sizes.join(", ")} · colours {p.colors.join(", ")}</div>
                 {p.createdBy && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>added by {p.createdBy}</div>}
+                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                  Main photo URL
+                  <input
+                    defaultValue={p.imageUrl || ""}
+                    placeholder="https://..."
+                    onBlur={(e) => updateProduct(p.id, { imageUrl: e.target.value.trim() })}
+                    style={{ ...inputStyle(theme), width: 200, padding: "5px 8px" }}
+                  />
+                </label>
+                {p.colors.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 4 }}>Photo per colour (optional)</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {p.colors.map((c) => (
+                        <label key={c} style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 70, flexShrink: 0, opacity: 0.75 }}>{c}</span>
+                          <input
+                            defaultValue={(p.colorImages || {})[c] || ""}
+                            placeholder="https://..."
+                            onBlur={(e) => updateProduct(p.id, { colorImages: { ...(p.colorImages || {}), [c]: e.target.value.trim() } })}
+                            style={{ ...inputStyle(theme), width: 200, padding: "5px 8px" }}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
@@ -836,7 +883,7 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {products.map((p) => (
             <div key={p.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name} <span style={{ fontWeight: 400, opacity: 0.6 }}>(${p.price})</span></div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name} <span style={{ fontWeight: 400, opacity: 0.6 }}>({money(currencySymbol, p.price)})</span></div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
                   <input type="checkbox" defaultChecked={p.special?.active || false} onChange={(e) => updateProduct(p.id, { special: { active: e.target.checked, percent: p.special?.percent || 0 } })} />
@@ -860,7 +907,7 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, flexWrap: "wrap", gap: 8 }}>
                 <span>{o.user_email}</span>
                 <span>{new Date(o.created_at).toLocaleString()}</span>
-                <span>${o.total.toFixed(2)}</span>
+                <span>{money(currencySymbol, o.total)}</span>
               </div>
               <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 6 }}>
                 {o.items.map((it, i) => <div key={i}>{it.name} ({it.color}, {it.size}) × {it.qty}</div>)}
@@ -892,6 +939,39 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
           ))}
         </div>
       )}
+
+      {tab === "store" && (
+        <StoreSettingsForm theme={theme} currencySymbol={currencySymbol} updateCurrency={updateCurrency} />
+      )}
+    </div>
+  );
+}
+
+function StoreSettingsForm({ theme, currencySymbol, updateCurrency }) {
+  const [value, setValue] = useState(currencySymbol);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setError("");
+    try {
+      await updateCurrency(value.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 360 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Currency</div>
+      <Field label="Currency symbol shown on every price (e.g. $, £, ₦, KES )">
+        <input style={inputStyle(theme)} value={value} onChange={(e) => setValue(e.target.value)} maxLength={6} />
+      </Field>
+      <ErrorNote message={error} theme={theme} />
+      <Button theme={theme} onClick={submit}>Save</Button>
+      {saved && <div style={{ color: theme.accent, fontSize: 12.5, marginTop: 10 }}>Saved — prices will show the new symbol.</div>}
     </div>
   );
 }
@@ -904,23 +984,34 @@ function AddProductForm({ theme, onAdd }) {
   const [colors, setColors] = useState("");
   const [sizes, setSizes] = useState("");
   const [gender, setGender] = useState(GENDERS[0]);
+  const [imageUrl, setImageUrl] = useState("");
+  const [colorImages, setColorImages] = useState({}); // { colorName: url }
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  const colorList = colors.split(",").map((c) => c.trim()).filter(Boolean);
 
   const submit = async () => {
     setError("");
     if (!name || !price) return;
     try {
+      // Only keep color-image entries for colors still in the list, and drop empties.
+      const cleanedColorImages = {};
+      colorList.forEach((c) => {
+        if (colorImages[c]) cleanedColorImages[c] = colorImages[c];
+      });
       await onAdd({
         name,
         description,
         price: parseFloat(price) || 0,
         stock: parseInt(stock) || 0,
-        colors: colors.split(",").map((c) => c.trim()).filter(Boolean),
+        colors: colorList,
         sizes: sizes.split(",").map((s) => s.trim()).filter(Boolean),
         gender,
+        imageUrl,
+        colorImages: cleanedColorImages,
       });
-      setName(""); setDescription(""); setPrice(""); setStock(""); setColors(""); setSizes("");
+      setName(""); setDescription(""); setPrice(""); setStock(""); setColors(""); setSizes(""); setImageUrl(""); setColorImages({});
       setDone(true);
       setTimeout(() => setDone(false), 2000);
     } catch (e) {
@@ -943,6 +1034,39 @@ function AddProductForm({ theme, onAdd }) {
           {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
       </Field>
+      <Field label="Main photo URL (optional)">
+        <input style={inputStyle(theme)} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+      </Field>
+      {imageUrl && (
+        <div style={{ marginBottom: 14 }}>
+          <ProductImage product={{ name, imageUrl }} theme={theme} height={140} />
+        </div>
+      )}
+
+      {colorList.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 8, opacity: 0.75 }}>Photo per colour (optional — falls back to the main photo above if left blank)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {colorList.map((c) => (
+              <div key={c} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ width: 70, flexShrink: 0, fontSize: 12.5, opacity: 0.75 }}>{c}</span>
+                <input
+                  style={{ ...inputStyle(theme), flex: 1 }}
+                  value={colorImages[c] || ""}
+                  onChange={(e) => setColorImages((prev) => ({ ...prev, [c]: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: -8, marginBottom: 14 }}>
+        Paste a link to a photo already hosted somewhere (e.g. uploaded to{" "}
+        <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" style={{ color: theme.accent }}>imgur.com</a>{" "}
+        or a similar image host). Leave blank to show a plain placeholder instead.
+      </div>
       <ErrorNote message={error} theme={theme} />
       <Button theme={theme} onClick={submit}>Post item</Button>
       {done && <div style={{ color: theme.accent, fontSize: 12.5, marginTop: 10 }}>Item posted.</div>}
@@ -962,6 +1086,7 @@ export default function App() {
   const [myOrders, setMyOrders] = useState([]); // customer: own orders
   const [bugReports, setBugReports] = useState([]);
   const [footprint, setFootprint] = useState([]);
+  const [currencySymbol, setCurrencySymbol] = useState("$");
 
   const [userToken, setUserToken] = useStoredToken("tl_user_token");
   const [adminToken, setAdminToken] = useStoredToken("tl_admin_token");
@@ -984,6 +1109,13 @@ export default function App() {
         setProgress(30);
         const p = await api("/products");
         if (!cancelled) setProducts(p);
+
+        try {
+          const s = await api("/settings");
+          if (!cancelled) setCurrencySymbol(s.currencySymbol || "$");
+        } catch (e) {
+          // non-critical — keep the default "$" if this fails
+        }
 
         setProgress(60);
         if (userToken && currentUser) {
@@ -1057,7 +1189,7 @@ export default function App() {
     setMyOrders(mine);
     setFootprint(fp);
     if (view.redirectTo === "checkout") setView({ name: "checkout" });
-    else setView({ name: "account" });
+    else setView({ name: "shop", gender: "All" });
   };
 
   const handleAdminLogin = async (email, code) => {
@@ -1115,6 +1247,10 @@ export default function App() {
     await api(`/orders/${id}/status`, { method: "PATCH", token: adminToken, body: { status } });
     setOrders((list) => list.map((o) => (o.id === id ? { ...o, status } : o)));
   };
+  const updateCurrency = async (symbol) => {
+    const data = await api("/settings", { method: "PATCH", token: adminToken, body: { currencySymbol: symbol } });
+    setCurrencySymbol(data.currencySymbol);
+  };
 
   if (!ready || loading) return <LoadingScreen theme={theme} progress={progress} status={status} />;
 
@@ -1133,20 +1269,22 @@ export default function App() {
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}
           updateOrderStatus={updateOrderStatus}
+          currencySymbol={currencySymbol}
+          updateCurrency={updateCurrency}
         />
       ) : (
         <>
-          {view.name === "shop" && <ShopView products={products} theme={theme} view={view} setView={setView} openProduct={openProduct} footprint={footprint} />}
+          {view.name === "shop" && <ShopView products={products} theme={theme} view={view} setView={setView} openProduct={openProduct} footprint={footprint} currencySymbol={currencySymbol} />}
           {view.name === "about" && <AboutView theme={theme} />}
-          {view.name === "cart" && <CartView cart={cart} theme={theme} setView={setView} removeFromCart={removeFromCart} currentUser={currentUser} />}
+          {view.name === "cart" && <CartView cart={cart} theme={theme} setView={setView} removeFromCart={removeFromCart} currentUser={currentUser} currencySymbol={currencySymbol} />}
           {view.name === "login" && <LoginView theme={theme} setView={setView} onLogin={handleAuth} redirectTo={view.redirectTo} />}
-          {view.name === "checkout" && currentUser && <CheckoutView theme={theme} cart={cart} placeOrder={placeOrder} setView={setView} />}
-          {view.name === "account" && currentUser && <AccountView theme={theme} currentUser={currentUser} myOrders={myOrders} submitBug={submitBug} onLogout={handleLogout} />}
+          {view.name === "checkout" && currentUser && <CheckoutView theme={theme} cart={cart} placeOrder={placeOrder} setView={setView} currencySymbol={currencySymbol} />}
+          {view.name === "account" && currentUser && <AccountView theme={theme} currentUser={currentUser} myOrders={myOrders} submitBug={submitBug} onLogout={handleLogout} currencySymbol={currencySymbol} />}
           {view.name === "admin-login" && <AdminLoginView theme={theme} onAdminLogin={handleAdminLogin} />}
         </>
       )}
 
-      {activeProduct && <ProductDetail product={activeProduct} theme={theme} onClose={() => setActiveProduct(null)} addToCart={addToCart} />}
+      {activeProduct && <ProductDetail product={activeProduct} theme={theme} onClose={() => setActiveProduct(null)} addToCart={addToCart} currencySymbol={currencySymbol} />}
 
       <div style={{ borderTop: `1px solid ${theme.border}`, marginTop: 40, padding: "26px 20px", textAlign: "center", fontSize: 12, opacity: 0.55 }}>
         THATHA LENTO — questions? message us on{" "}
