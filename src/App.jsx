@@ -656,15 +656,21 @@ function LoginView({ theme, setView, onLogin, redirectTo }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     setError("");
     if (!email || !password) { setError("Enter your email and password."); return; }
+    if (mode === "signup" && (!name || !phone || !location)) {
+      setError("Name, phone number and location are all required.");
+      return;
+    }
     setBusy(true);
     try {
-      await onLogin({ mode, email, password, name });
+      await onLogin({ mode, email, password, name, phone, location });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -678,7 +684,11 @@ function LoginView({ theme, setView, onLogin, redirectTo }) {
       <div style={{ opacity: 0.65, fontSize: 13, marginBottom: 22 }}>{redirectTo === "checkout" ? "Sign in to complete your checkout." : "Access your orders and saved details."}</div>
 
       {mode === "signup" && (
-        <Field label="Name"><input style={inputStyle(theme)} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <>
+          <Field label="Name"><input style={inputStyle(theme)} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Cell phone number"><input type="tel" style={inputStyle(theme)} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 082 123 4567" /></Field>
+          <Field label="Location (for delivery)"><input style={inputStyle(theme)} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Suburb, city" /></Field>
+        </>
       )}
       <Field label="Email"><input type="email" style={inputStyle(theme)} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
       <Field label="Password"><input type="password" style={inputStyle(theme)} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
@@ -700,12 +710,21 @@ function LoginView({ theme, setView, onLogin, redirectTo }) {
   );
 }
 
+const TERMS_OF_USE_TEXT = `By placing an order you agree that: the details you provide (name, phone number, delivery location) will be used solely to fulfil and deliver your order; payment is made via manual bank transfer, confirmed once you send proof of payment via WhatsApp; orders are only prepared once payment is confirmed; and delivery timeframes may vary. This is a placeholder Terms of Use — replace it with your actual store policy.`;
+
 /* ---------------- Checkout / payment placeholder ---------------- */
-function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
+function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol, currentUser, updateProfile }) {
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [location, setLocation] = useState(currentUser?.location || "");
+  const [editingDelivery, setEditingDelivery] = useState(!currentUser?.phone || !currentUser?.location);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
   const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Thatha Lento, here is my proof of payment for order total " + money(currencySymbol, total))}`;
 
   if (cart.length === 0 && !placed) {
@@ -714,9 +733,15 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
 
   const confirm = async () => {
     setError("");
+    if (!phone.trim() || !location.trim()) { setError("A phone number and location are required for delivery."); return; }
+    if (!termsAccepted) { setError("Please agree to the Terms of Use to continue."); return; }
     setBusy(true);
     try {
-      await placeOrder();
+      // Persist any changes to their saved delivery details for next time.
+      if (phone.trim() !== (currentUser?.phone || "") || location.trim() !== (currentUser?.location || "")) {
+        await updateProfile(phone.trim(), location.trim());
+      }
+      await placeOrder({ phone: phone.trim(), location: location.trim() });
       setPlaced(true);
     } catch (e) {
       setError(e.message);
@@ -748,6 +773,35 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
           </div>
 
           <div style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 18, marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>Deliver to</div>
+              {!editingDelivery && (
+                <button onClick={() => setEditingDelivery(true)} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontSize: 12.5, fontFamily: "inherit" }}>
+                  Edit
+                </button>
+              )}
+            </div>
+            {editingDelivery ? (
+              <>
+                <Field label="Cell phone number"><input type="tel" style={inputStyle(theme)} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 082 123 4567" /></Field>
+                <Field label="Location"><input style={inputStyle(theme)} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Suburb, city" /></Field>
+                {currentUser?.phone && currentUser?.location && (
+                  <button onClick={() => setEditingDelivery(false)} style={{ background: "none", border: "none", color: theme.textDim, cursor: "pointer", fontSize: 12, fontFamily: "inherit", textDecoration: "underline" }}>
+                    cancel
+                  </button>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>
+                <div>{currentUser?.name}</div>
+                <div>{phone}</div>
+                <div>{location}</div>
+                <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: 4 }}>Still your current location? If not, tap Edit above.</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 18, marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 10 }}>Payment details</div>
             <div style={{ fontSize: 13.5, lineHeight: 1.9 }}>
               <div>Account name: {PAY_DETAILS.bank}</div>
@@ -758,6 +812,23 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
             <div style={{ fontSize: 12, opacity: 0.6, marginTop: 10 }}>
               Transfer the total above, then send us a screenshot as proof of payment via WhatsApp.
             </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} style={{ marginTop: 2 }} />
+              <span>
+                I agree to the{" "}
+                <button type="button" onClick={() => setShowTerms((v) => !v)} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0, textDecoration: "underline" }}>
+                  Terms of Use
+                </button>
+              </span>
+            </label>
+            {showTerms && (
+              <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.7, opacity: 0.75, border: `1px solid ${theme.border}`, borderRadius: 4, padding: 12 }}>
+                {TERMS_OF_USE_TEXT}
+              </div>
+            )}
           </div>
 
           <ErrorNote message={error} theme={theme} />
@@ -785,15 +856,60 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol }) {
 }
 
 /* ---------------- Account view (orders + bug report) ---------------- */
-function AccountView({ theme, currentUser, myOrders, submitBug, onLogout, currencySymbol }) {
+function AccountView({ theme, currentUser, myOrders, submitBug, onLogout, currencySymbol, updateProfile }) {
   const [bugText, setBugText] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+
+  const [editingDelivery, setEditingDelivery] = useState(false);
+  const [phone, setPhone] = useState(currentUser.phone || "");
+  const [location, setLocation] = useState(currentUser.location || "");
+  const [deliveryError, setDeliveryError] = useState("");
+  const [deliverySaved, setDeliverySaved] = useState(false);
+
+  const saveDelivery = async () => {
+    setDeliveryError("");
+    if (!phone.trim() || !location.trim()) { setDeliveryError("Phone number and location are both required."); return; }
+    try {
+      await updateProfile(phone.trim(), location.trim());
+      setEditingDelivery(false);
+      setDeliverySaved(true);
+      setTimeout(() => setDeliverySaved(false), 2000);
+    } catch (e) {
+      setDeliveryError(e.message);
+    }
+  };
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px 80px" }}>
       <div style={{ fontFamily: "'Iowan Old Style', Georgia, serif", fontSize: 24, marginBottom: 4 }}>{currentUser.name}</div>
       <div style={{ opacity: 0.6, fontSize: 13, marginBottom: 24 }}>{currentUser.email}</div>
+
+      <div style={{ marginBottom: 30 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Delivery details</div>
+          {!editingDelivery && (
+            <button onClick={() => setEditingDelivery(true)} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontSize: 12.5, fontFamily: "inherit" }}>Edit</button>
+          )}
+        </div>
+        {editingDelivery ? (
+          <>
+            <Field label="Cell phone number"><input type="tel" style={inputStyle(theme)} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+            <Field label="Location"><input style={inputStyle(theme)} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
+            <ErrorNote message={deliveryError} theme={theme} />
+            <div style={{ display: "flex", gap: 10 }}>
+              <Button theme={theme} onClick={saveDelivery}>Save</Button>
+              <Button variant="ghost" theme={theme} onClick={() => { setEditingDelivery(false); setPhone(currentUser.phone || ""); setLocation(currentUser.location || ""); }}>Cancel</Button>
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>
+            <div>{currentUser.phone || "No phone number saved"}</div>
+            <div>{currentUser.location || "No location saved"}</div>
+          </div>
+        )}
+        {deliverySaved && <div style={{ color: theme.accent, fontSize: 12.5, marginTop: 8 }}>Saved.</div>}
+      </div>
 
       <div style={{ marginBottom: 30 }}>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Order history</div>
@@ -807,6 +923,7 @@ function AccountView({ theme, currentUser, myOrders, submitBug, onLogout, curren
                 <span>{money(currencySymbol, o.total)}</span>
               </div>
               <div style={{ opacity: 0.65, marginTop: 4 }}>{o.items.length} item(s) · {o.status}</div>
+              <div style={{ opacity: 0.55, marginTop: 2, fontSize: 12 }}>Delivered to: {o.location} · {o.phone}</div>
             </div>
           ))
         )}
@@ -1264,9 +1381,9 @@ export default function App() {
   const addToCart = (item) => setCart((c) => [...c, item]);
   const removeFromCart = (idx) => setCart((c) => c.filter((_, i) => i !== idx));
 
-  const handleAuth = async ({ mode: authMode, email, password, name }) => {
+  const handleAuth = async ({ mode: authMode, email, password, name, phone, location }) => {
     const data = authMode === "signup"
-      ? await api("/auth/signup", { method: "POST", body: { name, email, password } })
+      ? await api("/auth/signup", { method: "POST", body: { name, email, password, phone, location } })
       : await api("/auth/login", { method: "POST", body: { email, password } });
     setUserToken(data.token);
     setCurrentUser(data.user);
@@ -1305,16 +1422,27 @@ export default function App() {
     setView({ name: "shop", gender: "All" });
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async ({ phone, location }) => {
     const order = await api("/orders", {
       method: "POST",
       token: userToken,
-      body: { items: cart.map((c) => ({ productId: c.productId, size: c.size, color: c.color, qty: c.qty })) },
+      body: {
+        items: cart.map((c) => ({ productId: c.productId, size: c.size, color: c.color, qty: c.qty })),
+        phone,
+        location,
+        termsAccepted: true,
+      },
     });
     setMyOrders((o) => [order, ...o]);
     setCart([]);
     await refreshProducts();
     return order;
+  };
+
+  const updateProfile = async (phone, location) => {
+    const data = await api("/auth/profile", { method: "PATCH", token: userToken, body: { phone, location } });
+    setCurrentUser(data.user);
+    return data.user;
   };
 
   const submitBug = (message) => api("/bugs", { method: "POST", token: userToken, body: { message } });
@@ -1366,8 +1494,8 @@ export default function App() {
           {view.name === "about" && <AboutView theme={theme} />}
           {view.name === "cart" && <CartView cart={cart} theme={theme} setView={setView} removeFromCart={removeFromCart} currentUser={currentUser} currencySymbol={currencySymbol} />}
           {view.name === "login" && <LoginView theme={theme} setView={setView} onLogin={handleAuth} redirectTo={view.redirectTo} />}
-          {view.name === "checkout" && currentUser && <CheckoutView theme={theme} cart={cart} placeOrder={placeOrder} setView={setView} currencySymbol={currencySymbol} />}
-          {view.name === "account" && currentUser && <AccountView theme={theme} currentUser={currentUser} myOrders={myOrders} submitBug={submitBug} onLogout={handleLogout} currencySymbol={currencySymbol} />}
+          {view.name === "checkout" && currentUser && <CheckoutView theme={theme} cart={cart} placeOrder={placeOrder} setView={setView} currencySymbol={currencySymbol} currentUser={currentUser} updateProfile={updateProfile} />}
+          {view.name === "account" && currentUser && <AccountView theme={theme} currentUser={currentUser} myOrders={myOrders} submitBug={submitBug} onLogout={handleLogout} currencySymbol={currencySymbol} updateProfile={updateProfile} />}
           {view.name === "admin-login" && <AdminLoginView theme={theme} onAdminLogin={handleAdminLogin} />}
         </>
       )}
