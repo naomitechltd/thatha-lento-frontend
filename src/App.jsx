@@ -9,6 +9,27 @@ import { ShoppingBag, Sun, Moon, Menu, X, Plus, Trash2, Bug, Package, Tag, User,
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 const WHATSAPP_NUMBER = "10000000000"; // placeholder — update with the real number
+// Photo uploads go straight from the browser to Cloudinary's free tier (no
+// backend storage needed). Sign up at cloudinary.com, create an "unsigned"
+// upload preset, then set these two in your .env / Vercel env vars.
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+
+async function uploadImageFile(file) {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error("Photo upload isn't set up yet — ask your developer to configure Cloudinary.");
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || "Photo upload failed.");
+  return data.secure_url;
+}
 const PAY_DETAILS = {
   bank: "Thatha Lento Ltd.",
   account: "0000-0000-0000",
@@ -333,6 +354,87 @@ function ProductImage({ product, theme, height = 260 }) {
   return (
     <div style={{ height, background: theme.bgSunken, display: "flex", alignItems: "center", justifyContent: "center", color: theme.textDim, fontFamily: "'Iowan Old Style', Georgia, serif", fontSize: 13, letterSpacing: "0.06em", border: `1px solid ${theme.border}`, textAlign: "center", padding: 12 }}>
       {product.name}
+    </div>
+  );
+}
+
+// Lets an admin pick a photo straight from their device. Uploads it to
+// Cloudinary and calls onChange with the resulting URL. Also offers a
+// "paste a link instead" fallback for photos already hosted elsewhere.
+function PhotoPicker({ theme, value, onChange, label }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const inputId = useMemo(() => "photo-" + Math.random().toString(36).slice(2), []);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow picking the same file again later
+    if (!file) return;
+    setError("");
+    setUploading(true);
+    try {
+      const url = await uploadImageFile(file);
+      onChange(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <div style={{ fontSize: 12.5, marginBottom: 6, opacity: 0.75 }}>{label}</div>}
+      {value && (
+        <div style={{ marginBottom: 8 }}>
+          <ProductImage product={{ name: label || "Photo", imageUrl: value }} theme={theme} height={140} />
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <label
+          htmlFor={inputId}
+          style={{
+            display: "inline-block",
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            borderRadius: 3,
+            border: `1px solid ${theme.accent}`,
+            color: theme.accent,
+            cursor: uploading ? "not-allowed" : "pointer",
+            opacity: uploading ? 0.6 : 1,
+          }}
+        >
+          {uploading ? "Uploading..." : value ? "Change photo" : "Choose photo"}
+        </label>
+        <input id={inputId} type="file" accept="image/*" onChange={handleFile} disabled={uploading} style={{ display: "none" }} />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            style={{ background: "none", border: "none", color: theme.danger, cursor: "pointer", fontSize: 12.5 }}
+          >
+            Remove
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowUrlInput((v) => !v)}
+          style={{ background: "none", border: "none", color: theme.textDim, cursor: "pointer", fontSize: 12, textDecoration: "underline" }}
+        >
+          {showUrlInput ? "hide link field" : "or paste a link instead"}
+        </button>
+      </div>
+      {showUrlInput && (
+        <input
+          style={{ ...inputStyle(theme), marginTop: 8 }}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://..."
+        />
+      )}
+      {error && <div style={{ color: theme.danger, fontSize: 12, marginTop: 6 }}>{error}</div>}
     </div>
   );
 }
@@ -833,29 +935,26 @@ function AdminDashboard({ theme, currentAdmin, products, orders, bugReports, add
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
                 <div style={{ fontSize: 12.5, opacity: 0.65 }}>{p.gender} · {money(currencySymbol, p.price)} · stock {p.stock} · sizes {p.sizes.join(", ")} · colours {p.colors.join(", ")}</div>
                 {p.createdBy && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>added by {p.createdBy}</div>}
-                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-                  Main photo URL
-                  <input
-                    defaultValue={p.imageUrl || ""}
-                    placeholder="https://..."
-                    onBlur={(e) => updateProduct(p.id, { imageUrl: e.target.value.trim() })}
-                    style={{ ...inputStyle(theme), width: 200, padding: "5px 8px" }}
+                <div style={{ marginTop: 8, maxWidth: 260 }}>
+                  <PhotoPicker
+                    theme={theme}
+                    label="Main photo"
+                    value={p.imageUrl || ""}
+                    onChange={(url) => updateProduct(p.id, { imageUrl: url })}
                   />
-                </label>
+                </div>
                 {p.colors.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
+                  <div style={{ marginTop: 4, maxWidth: 260 }}>
                     <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 4 }}>Photo per colour (optional)</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       {p.colors.map((c) => (
-                        <label key={c} style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ width: 70, flexShrink: 0, opacity: 0.75 }}>{c}</span>
-                          <input
-                            defaultValue={(p.colorImages || {})[c] || ""}
-                            placeholder="https://..."
-                            onBlur={(e) => updateProduct(p.id, { colorImages: { ...(p.colorImages || {}), [c]: e.target.value.trim() } })}
-                            style={{ ...inputStyle(theme), width: 200, padding: "5px 8px" }}
-                          />
-                        </label>
+                        <PhotoPicker
+                          key={c}
+                          theme={theme}
+                          label={c}
+                          value={(p.colorImages || {})[c] || ""}
+                          onChange={(url) => updateProduct(p.id, { colorImages: { ...(p.colorImages || {}), [c]: url } })}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1034,38 +1133,27 @@ function AddProductForm({ theme, onAdd }) {
           {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>
       </Field>
-      <Field label="Main photo URL (optional)">
-        <input style={inputStyle(theme)} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-      </Field>
-      {imageUrl && (
-        <div style={{ marginBottom: 14 }}>
-          <ProductImage product={{ name, imageUrl }} theme={theme} height={140} />
-        </div>
-      )}
+      <PhotoPicker theme={theme} label="Main photo" value={imageUrl} onChange={setImageUrl} />
 
       {colorList.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12.5, marginBottom: 8, opacity: 0.75 }}>Photo per colour (optional — falls back to the main photo above if left blank)</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {colorList.map((c) => (
-              <div key={c} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ width: 70, flexShrink: 0, fontSize: 12.5, opacity: 0.75 }}>{c}</span>
-                <input
-                  style={{ ...inputStyle(theme), flex: 1 }}
-                  value={colorImages[c] || ""}
-                  onChange={(e) => setColorImages((prev) => ({ ...prev, [c]: e.target.value }))}
-                  placeholder="https://..."
-                />
-              </div>
+              <PhotoPicker
+                key={c}
+                theme={theme}
+                label={c}
+                value={colorImages[c] || ""}
+                onChange={(url) => setColorImages((prev) => ({ ...prev, [c]: url }))}
+              />
             ))}
           </div>
         </div>
       )}
 
       <div style={{ fontSize: 11.5, opacity: 0.55, marginTop: -8, marginBottom: 14 }}>
-        Paste a link to a photo already hosted somewhere (e.g. uploaded to{" "}
-        <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer" style={{ color: theme.accent }}>imgur.com</a>{" "}
-        or a similar image host). Leave blank to show a plain placeholder instead.
+        Photos upload straight from your device. Leave blank to show a plain placeholder instead.
       </div>
       <ErrorNote message={error} theme={theme} />
       <Button theme={theme} onClick={submit}>Post item</Button>
