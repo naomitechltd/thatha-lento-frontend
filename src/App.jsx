@@ -8,7 +8,7 @@ import { ShoppingBag, Sun, Moon, Menu, X, Plus, Trash2, Bug, Package, Tag, User,
 --------------------------------------------------------- */
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
-const WHATSAPP_NUMBER = "10000000000"; // placeholder — update with the real number
+const WHATSAPP_NUMBER = "+27 72 998 9988"; // placeholder — update with the real number
 // Photo uploads go straight from the browser to Cloudinary's free tier (no
 // backend storage needed). Sign up at cloudinary.com, create an "unsigned"
 // upload preset, then set these two in your .env / Vercel env vars.
@@ -33,7 +33,7 @@ async function uploadImageFile(file) {
 const PAY_DETAILS = {
   bank: "Thatha Lento Ltd.",
   account: "0000-0000-0000",
-  bankName: "Placeholder Bank",
+  bankName: "Capitec Bank Ltd",
   swift: "PLCHXXXX",
 };
 const GENDERS = ["Male", "Female"];
