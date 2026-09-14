@@ -33,7 +33,7 @@ async function uploadImageFile(file) {
 const PAY_DETAILS = {
   bank: "Thatha Lento Ltd.",
   account: "0000-0000-0000",
-  bankName: "Capitec Bank Ltd",
+  bankName: "Placeholder Bank",
   swift: "PLCHXXXX",
 };
 const GENDERS = ["Male", "Female"];
@@ -716,6 +716,7 @@ const TERMS_OF_USE_TEXT = `By placing an order you agree that: the details you p
 function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol, currentUser, updateProfile }) {
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   const [placed, setPlaced] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState(null); // snapshot of the real order, so its total survives the cart being cleared
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -725,7 +726,10 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol, curren
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
-  const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Thatha Lento, here is my proof of payment for order total " + money(currencySymbol, total))}`;
+  // Use the server-confirmed order total once placed (cart is cleared right
+  // after placing, so recalculating from `cart` here would show $0.00).
+  const waTotal = placedOrder ? placedOrder.total : total;
+  const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Thatha Lento, here is my proof of payment for order total " + money(currencySymbol, waTotal))}`;
 
   if (cart.length === 0 && !placed) {
     return <div style={{ maxWidth: 600, margin: "0 auto", padding: "60px 20px" }}><div style={{ opacity: 0.7 }}>Your bag is empty.</div></div>;
@@ -741,7 +745,8 @@ function CheckoutView({ theme, cart, placeOrder, setView, currencySymbol, curren
       if (phone.trim() !== (currentUser?.phone || "") || location.trim() !== (currentUser?.location || "")) {
         await updateProfile(phone.trim(), location.trim());
       }
-      await placeOrder({ phone: phone.trim(), location: location.trim() });
+      const order = await placeOrder({ phone: phone.trim(), location: location.trim() });
+      setPlacedOrder(order);
       setPlaced(true);
     } catch (e) {
       setError(e.message);
