@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import , { useState, useEffect, useMemo, useCallback } from "react";
 import { ShoppingBag, Sun, Moon, Menu, X, Plus, Trash2, Bug, Package, Tag, User, LogOut, Check, AlertCircle } from "lucide-react";
 
 /* ---------------------------------------------------------
