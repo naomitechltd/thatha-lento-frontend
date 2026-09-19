@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
+export const API = import.meta.env.VITE_API_URL || "https://thatha-lento-backend.onrender.com";
 
 // Photo uploads go straight from the browser to Cloudinary's free tier (no
 // backend storage needed). Sign up at cloudinary.com, create an "unsigned"
@@ -80,4 +80,4 @@ export function useStoredJSON(key) {
     else localStorage.removeItem(key);
   };
   return [value, setValue];
-                   }
+}
