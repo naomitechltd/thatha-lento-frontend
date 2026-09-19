@@ -19,4 +19,4 @@ export const PAY_DETAILS = {
 export const GENDERS = ["Male", "Female"];
 
 // Shown as a dropdown when a customer says they're in Nkomazi.
-export const NKOMAZI_AREAS = ["Boschfontein", "Aniva", "Driekoppies", "Langeloop"];
+export const NKOMAZI_AREAS = ["Boschfontein", "Aniva", "Driekoppies", "Langeloop", "Kamhlushwa", "Tonga", "Mdladla", "Phiva", "Mzinti"];
