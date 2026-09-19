@@ -62,4 +62,3 @@ export function ShopView({ products, theme, view, setView, openProduct, footprin
     </div>
   );
 }
-
