@@ -1,10 +1,9 @@
 import React from "react";
+import logo from "../pictures/logo.png";   // or "../pictures/THATHA LENTO.png" if you keep the original name
 
-// Swap this for a real logo image URL when you have one — same pattern as
-// product photos (see components/media.jsx) if you'd rather upload one.
 const OWNER_PHOTO_URL = "";
-const OWNER_NAME = "Owner name here"; // placeholder — update with the real owner's name
-const LOGO_URL = "";
+const OWNER_NAME = "Owner name here";
+const LOGO_URL = logo;
 
 export function AboutView({ theme }) {
   return (
