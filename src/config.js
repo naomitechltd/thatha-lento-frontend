@@ -19,4 +19,36 @@ export const PAY_DETAILS = {
 export const GENDERS = ["Male", "Female"];
 
 // Shown as a dropdown when a customer says they're in Nkomazi.
-export const NKOMAZI_AREAS = ["Boschfontein", "Aniva", "Driekoppies", "Langeloop", "Kamhlushwa", "Tonga", "Mdladla", "Phiva", "Mzinti", "Schoemansdal", "Baffelspruit", "Magogeni", "Shiba", "Mbuzini”];
+export const NKOMAZI_AREAS = [
+  "Aniva",
+  "Baffelspruit",
+  "Block A",
+  "Block B",
+  "Block C",
+  "Block D",
+  "Boschfontein",
+  "Buffelspruit",
+  "Dludluma",
+  "Driekoppies",
+  "Hectorspruit",
+  "Jeppes Reef",
+  "KaMhlushwa",
+  "KaMaqhekeza",
+  "Komatipoort",
+  "Langeloop",
+  "Louieville",
+  "Lugedlane",
+  "Magogeni",
+  "Malalane",
+  "Marloth Park",
+  "Mbuzini",
+  "Mdladla",
+  "Mzinti",
+  "Naas",
+  "Phiva",
+  "Schoemansdal",
+  "Schulzendeal",
+  "Shiba",
+  "Steenbok",
+  "Tonga"
+];
