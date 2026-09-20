@@ -139,7 +139,7 @@ export default function App() {
   const handleAuth = async ({ mode: authMode, email, password, name, phone, location }) => {
     const data =
       authMode === "signup"
-        ? await api("/auth/signup", {
+        ? await api("/auth/register", {
             method: "POST",
             body: { name, email, password, phone, location },
           })
