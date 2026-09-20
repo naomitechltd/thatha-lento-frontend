@@ -42,6 +42,7 @@ export const NKOMAZI_AREAS = [
   "Madadeni",
   "Magogeni",
   "Malalane",
+  "Matsulu",
   "Marloth Park",
   "Mbuzini",
   "Mdladla",
