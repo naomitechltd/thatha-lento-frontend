@@ -45,11 +45,11 @@ We do not store or process card details.
 4. Contact Us
 If you have questions about your data or privacy, you can contact us via WhatsApp or email:
 Email: info@thathalento.co.za
-WhatsApp / Phone: 081 716 [Your Number]`;
+WhatsApp / Phone: +27 72 998 9988`;
 
 export const DEVELOPER_INFO = {
   builtBy: "Naomi Tech Ltd",
   contactEmail: "naomitechltd@gmail.com",
-  phone: "066 045 1321",
+  phoneNo: "066 045 1321",
   note: "This application was custom-designed and engineered by Naomi Tech Ltd.",
 };
