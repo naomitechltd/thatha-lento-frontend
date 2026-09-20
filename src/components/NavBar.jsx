@@ -1,5 +1,5 @@
 import React from "react";
-import { ShoppingBag, Sun, Moon, Menu, X, User, LogOut } from "lucide-react";
+import { ShoppingBag, Sun, Moon, Menu, X, User, LogOut, Home } from "lucide-react";
 
 export function NavBar({ theme, mode, setMode, view, setView, cartCount, currentUser, currentAdmin, onLogout, mobileOpen, setMobileOpen }) {
   const linkStyle = (active) => ({
@@ -35,6 +35,10 @@ export function NavBar({ theme, mode, setMode, view, setView, cartCount, current
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setView({ name: "shop", gender: "All" })} title="Home" style={{ background: "none", border: "none", cursor: "pointer", color: theme.text, display: "flex" }}>
+            <Home size={18} />
+          </button>
+
           <button onClick={() => setMode(mode === "dark" ? "light" : "dark")} title="Toggle theme" style={{ background: "none", border: "none", cursor: "pointer", color: theme.text, display: "flex" }}>
             {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
