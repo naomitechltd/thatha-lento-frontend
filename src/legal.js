@@ -2,7 +2,7 @@
 // policy before relying on it — none of this is legal advice, just a
 // starting structure so the pages exist and read sensibly.
 
-export const TERMS_OF_USE_TEXT = `By placing an order you agree that: the details you provide (name, phone number, delivery location) will be used solely to fulfil and deliver your order; payment is made via manual bank transfer, confirmed once you send proof of payment via WhatsApp or email; orders are only prepared once payment is confirmed; and delivery timeframes may vary. This is a placeholder Terms of Use — replace it with your actual store policy.`;
+export const TERMS_OF_USE_TEXT = `By placing an order, you acknowledge and agree to the following terms: the personal details provided (including name, phone number, and delivery location) will be used strictly for order fulfillment and delivery purposes; payments are processed via manual bank transfer and are officially confirmed upon receipt of valid proof of payment via WhatsApp or email; order preparation and processing commence only after payment verification; and estimated delivery timeframes are subject to change based on logistical factors.`;
 
 export const TERMS_AND_CONDITIONS_TEXT = `Terms and Conditions — Thatha Lento
 Effective Date: September 20, 2026
@@ -45,9 +45,11 @@ We do not store or process card details.
 4. Contact Us
 If you have questions about your data or privacy, you can contact us via WhatsApp or email:
 Email: info@thathalento.co.za
-WhatsApp / Phone: 081 716 [Your Number]`
+WhatsApp / Phone: 081 716 [Your Number]`;
+
 export const DEVELOPER_INFO = {
   builtBy: "Naomi Tech Ltd",
-  contactEmail: "hello@naomitechltd.com",
-  note: "This app was designed and built by Naomi Tech Ltd. Replace these details with your real developer/agency contact info.",
+  contactEmail: "naomitechltd@gmail.com",
+  phone: "0660451321",
+  note: "This application was custom-designed and engineered by Naomi Tech Ltd.",
 };
