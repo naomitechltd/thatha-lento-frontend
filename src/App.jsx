@@ -1,3 +1,192 @@
+Import React, { useState, useEffect, useCallback } from "react";
+import { api, useStoredToken, useStoredJSON } from "./lib/api";
+import { useTheme } from "./lib/theme";
+import { WHATSAPP_NUMBER } from "./config";
+import { supabase } from "./supabase"; // Imported your persistent Supabase client
+
+import { LoadingScreen } from "./components/LoadingScreen";
+import { NavBar } from "./components/NavBar";
+
+import { ShopView } from "./pages/ShopView";
+import { ProductDetail } from "./pages/ProductDetail";
+import { CartView } from "./pages/CartView";
+import { LoginView } from "./pages/LoginView";
+import { CheckoutView } from "./pages/CheckoutView";
+import { AccountView } from "./pages/AccountView";
+import { AboutView } from "./pages/AboutView";
+import { AdminLoginView } from "./pages/AdminLoginView";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { TermsOfUsePage, TermsAndConditionsPage, PrivacyPolicyPage, DeveloperPage } from "./pages/LegalPages";
+
+/* ---------------------------------------------------------
+   THATHA LENTO — frontend
+   Talks directly to Supabase for products and the backend API for orders/auth.
+--------------------------------------------------------- */
+
+export default function App() {
+  const { mode, setMode, theme, ready } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("Loading the collection...");
+
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]); // admin: all orders
+  const [myOrders, setMyOrders] = useState([]); // customer: own orders
+  const [bugReports, setBugReports] = useState([]);
+  const [footprint, setFootprint] = useState([]);
+  const [currencySymbol, setCurrencySymbol] = useState("$");
+
+  const [userToken, setUserToken] = useStoredToken("tl_user_token");
+  const [adminToken, setAdminToken] = useStoredToken("tl_admin_token");
+  const [currentUser, setCurrentUser] = useStoredJSON("tl_user_info"); // { name, email, phone, location }
+  const [currentAdmin, setCurrentAdmin] = useStoredJSON("tl_admin_info"); // { email, role }
+
+  const [cart, setCart] = useState([]);
+  const [view, setView] = useState(() =>
+    localStorage.getItem("tl_admin_token") ? { name: "admin" } : { name: "shop", gender: "All" }
+  );
+  const [activeProduct, setActiveProduct] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // initial load: fetch products straight from Supabase to prevent data wipes on GitHub commits
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setStatus("Loading products...");
+        setProgress(30);
+        
+        // Fetch products directly from Supabase 'Products' table
+        const { data: dbProducts, error: prodError } = await supabase.from('Products').select('*');
+        if (prodError) throw prodError;
+        if (!cancelled) setProducts(dbProducts || []);
+
+        try {
+          const s = await api("/settings");
+          if (!cancelled) setCurrencySymbol(s.currencySymbol || "$");
+        } catch (e) {
+          // non-critical — keep the default "$" if this fails
+        }
+
+        setProgress(60);
+        if (userToken && currentUser) {
+          setStatus("Restoring your session...");
+          try {
+            const [mine, fp] = await Promise.all([
+              api("/orders/mine", { token: userToken }),
+              api("/footprints/mine", { token: userToken }),
+            ]);
+            if (!cancelled) { setMyOrders(mine); setFootprint(fp); }
+          } catch (e) {
+            setUserToken(null);
+            setCurrentUser(null);
+          }
+        }
+        if (adminToken && currentAdmin) {
+          try {
+            if (currentAdmin.role === "full") {
+              const [ord, bugs] = await Promise.all([
+                api("/orders", { token: adminToken }),
+                api("/bugs", { token: adminToken }),
+              ]);
+              if (!cancelled) { setOrders(ord); setBugReports(bugs); }
+            } else {
+              const bugs = await api("/bugs", { token: adminToken });
+              if (!cancelled) setBugReports(bugs);
+            }
+          } catch (e) {
+            setAdminToken(null);
+            setCurrentAdmin(null);
+          }
+        }
+
+        setProgress(100);
+        setStatus("Ready");
+      } catch (e) {
+        setStatus("Could not load products from database.");
+      } finally {
+        setTimeout(() => { if (!cancelled) setLoading(false); }, 350);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const refreshProducts = useCallback(async () => {
+    const { data } = await supabase.from('Products').select('*');
+    if (data) setProducts(data);
+  }, []);
+
+  const openProduct = (product) => {
+    setActiveProduct(product);
+    const entry = { productId: product.id, gender: product.gender, ts: Date.now() };
+    setFootprint((f) => [...f, entry].slice(-50));
+    if (userToken) {
+      api("/footprints", { method: "POST", token: userToken, body: { productId: product.id, gender: product.gender } }).catch(() => {});
+    }
+  };
+
+  const addToCart = (item) => setCart((c) => [...c, item]);
+  const removeFromCart = (idx) => setCart((c) => c.filter((_, i) => i !== idx));
+
+  const handleAuth = async ({ mode: authMode, email, password, name, phone, location }) => {
+    const data = authMode === "signup"
+      ? await api("/auth/signup", { method: "POST", body: { name, email, password, phone, location } })
+      : await api("/auth/login", { method: "POST", body: { email, password } });
+    setUserToken(data.token);
+    setCurrentUser(data.user);
+    const [mine, fp] = await Promise.all([
+      api("/orders/mine", { token: data.token }),
+      api("/footprints/mine", { token: data.token }),
+    ]);
+    setMyOrders(mine);
+    setFootprint(fp);
+    if (view.redirectTo === "checkout") setView({ name: "checkout" });
+    else setView({ name: "shop", gender: "All" });
+  };
+
+  const handleAdminLogin = async (email, code) => {
+    const data = await api("/admin/login", { method: "POST", body: { email, code } });
+    setAdminToken(data.token);
+    setCurrentAdmin(data.admin);
+    if (data.admin.role === "full") {
+      const [ord, bugs] = await Promise.all([
+        api("/orders", { token: data.token }),
+        api("/bugs", { token: data.token }),
+      ]);
+      setOrders(ord);
+      setBugReports(bugs);
+    } else {
+      setBugReports(await api("/bugs", { token: data.token }));
+    }
+    setView({ name: "admin" });
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUserToken(null);
+    setCurrentAdmin(null);
+    setAdminToken(null);
+    setView({ name: "shop", gender: "All" });
+  };
+
+  const placeOrder = async ({ phone, location }) => {
+    const order = await api("/orders", {
+      method: "POST",
+      token: userToken,
+      body: {
+        items: cart.map((c) => ({ productId: c.productId, size: c.size, color: c.color, qty: c.qty })),
+        phone,
+        location,
+        termsAccepted: true,
+      },
+    });
+    setMyOrders((o) => [order, ...o]);
+    setCart([]);
+    await refreshProducts();
+    return order;
+  };
+
 import React, { useState, useEffect, useCallback } from "react";
 import { api, useStoredToken, useStoredJSON } from "./lib/api";
 import { useTheme } from "./lib/theme";
