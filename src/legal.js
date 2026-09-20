@@ -4,15 +4,29 @@
 
 export const TERMS_OF_USE_TEXT = `By placing an order you agree that: the details you provide (name, phone number, delivery location) will be used solely to fulfil and deliver your order; payment is made via manual bank transfer, confirmed once you send proof of payment via WhatsApp or email; orders are only prepared once payment is confirmed; and delivery timeframes may vary. This is a placeholder Terms of Use — replace it with your actual store policy.`;
 
-export const TERMS_AND_CONDITIONS_TEXT = `These Terms and Conditions govern your use of the Thatha Lento website and app. By browsing or ordering from us, you agree to these terms.
+export const TERMS_AND_CONDITIONS_TEXT = `Terms and Conditions — Thatha Lento
+Effective Date: September 20, 2026
 
-1. Products: We do our best to represent colours and sizing accurately, but slight variations may occur.
-2. Orders: An order is only confirmed once payment has been verified.
-3. Pricing: Prices are shown in the currency set by the store and may change without notice.
-4. Delivery: Delivery timeframes are estimates, not guarantees.
-5. Returns: Contact us via WhatsApp or email to discuss any issue with your order.
+These Terms and Conditions govern your use of the Thatha Lento website and application, as well as any purchases made through our platform. By browsing our site or placing an order, you agree to comply with and be bound by these terms.
 
-This is placeholder text — replace it with your real terms before launch.`;
+1. Products and Representations
+We strive to ensure that all product descriptions, imagery, colours, and sizing are displayed as accurately as possible. However, slight variations may occur due to screen settings, manufacturing updates, or handcrafted details.
+
+2. Order Placement and Confirmation
+All orders are subject to availability and acceptance. An order is officially confirmed only once your manual bank transfer payment has been verified and processed by our team.
+
+3. Pricing and Currency
+Prices are quoted in the currency determined by the store interface and are subject to change without prior notice. Applicable taxes and delivery fees will be calculated during the checkout process.
+
+4. Delivery and Fulfilment
+Delivery timeframes provided are estimates and not guaranteed deadlines. While we make every effort to ensure prompt dispatch, external courier delays or regional factors may occasionally impact transit times.
+
+5. Returns and Dispute Resolution
+Customer satisfaction is important to us. Should you experience any issues with your order, please contact us promptly via WhatsApp or email so we can review your case and work towards a satisfactory resolution.
+
+6. Modifications
+Thatha Lento reserves the right to update or modify these terms at any time without prior notice. Continued use of the platform constitutes your agreement to the revised terms.
+`;
 
 export const PRIVACY_POLICY_TEXT = `Privacy Policy — ThathaLento
 Effective Date: September 20, 2026
