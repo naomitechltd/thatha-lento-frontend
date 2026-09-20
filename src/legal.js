@@ -50,6 +50,6 @@ WhatsApp / Phone: 081 716 [Your Number]`;
 export const DEVELOPER_INFO = {
   builtBy: "Naomi Tech Ltd",
   contactEmail: "naomitechltd@gmail.com",
-  phone: "0660451321",
+  phone: "+2766 045 1321",
   note: "This application was custom-designed and engineered by Naomi Tech Ltd.",
 };
