@@ -14,12 +14,24 @@ export const TERMS_AND_CONDITIONS_TEXT = `These Terms and Conditions govern your
 
 This is placeholder text — replace it with your real terms before launch.`;
 
-export const PRIVACY_POLICY_TEXT = `We collect the name, email, phone number and delivery location you provide when creating an account or placing an order, along with basic browsing activity used to show you relevant items. This information is used only to process orders, communicate with you about them, and improve the shopping experience — it is never sold to third parties.
-
-Payment is handled manually via bank transfer; we do not store card details. If you have questions about your data, contact us via WhatsApp or email.
-
-This is placeholder text — replace it with your real privacy policy before launch.`;
-
+export const PRIVACY_POLICY_TEXT = `Privacy Policy — ThathaLento
+Effective Date: September 20, 2026
+At ThathaLento, we respect your privacy and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, and safeguard your data when you use our platform or place an order.
+1. Information We Collect
+We collect the name, email, phone number, and delivery location you provide when creating an account or placing an order, along with basic browsing activity used to show you relevant items.
+2. How We Use Your Information
+This information is used only to:
+Process your orders and deliver your items.
+Communicate with you regarding your account and orders.
+Improve the shopping and user experience.
+Your information is never sold to third parties.
+3. Payments
+Payment is handled manually via bank transfer.
+We do not store or process card details.
+4. Contact Us
+If you have questions about your data or privacy, you can contact us via WhatsApp or email:
+Email: info@thathalento.co.za
+WhatsApp / Phone: 081 716 [Your Number]`
 export const DEVELOPER_INFO = {
   builtBy: "Naomi Tech Ltd",
   contactEmail: "hello@naomitechltd.com",
