@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { api, useStoredToken, useStoredJSON } from "./lib/api";
 import { useTheme } from "./lib/theme";
 import { WHATSAPP_NUMBER } from "./config";
-import { supabase } from "./supabase";
 
 import { LoadingScreen } from "./components/LoadingScreen";
 import { NavBar } from "./components/NavBar";
@@ -20,7 +19,8 @@ import { TermsOfUsePage, TermsAndConditionsPage, PrivacyPolicyPage, DeveloperPag
 
 /* ---------------------------------------------------------
    THATHA LENTO — frontend
-   Talks directly to Supabase for products and the backend API for orders/auth.
+   Talks to the backend API (see ../thatha-lento-backend).
+   Set VITE_API_URL in .env to point at it.
 --------------------------------------------------------- */
 
 export default function App() {
@@ -30,16 +30,16 @@ export default function App() {
   const [status, setStatus] = useState("Loading the collection...");
 
   const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]); // admin: all orders
-  const [myOrders, setMyOrders] = useState([]); // customer: own orders
+  const [orders, setOrders] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
   const [bugReports, setBugReports] = useState([]);
   const [footprint, setFootprint] = useState([]);
   const [currencySymbol, setCurrencySymbol] = useState("$");
 
   const [userToken, setUserToken] = useStoredToken("tl_user_token");
   const [adminToken, setAdminToken] = useStoredToken("tl_admin_token");
-  const [currentUser, setCurrentUser] = useStoredJSON("tl_user_info"); // { name, email, phone, location }
-  const [currentAdmin, setCurrentAdmin] = useStoredJSON("tl_admin_info"); // { email, role }
+  const [currentUser, setCurrentUser] = useStoredJSON("tl_user_info");
+  const [currentAdmin, setCurrentAdmin] = useStoredJSON("tl_admin_info");
 
   const [cart, setCart] = useState([]);
   const [view, setView] = useState(() =>
@@ -48,24 +48,20 @@ export default function App() {
   const [activeProduct, setActiveProduct] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // initial load: fetch products straight from Supabase to prevent data wipes on GitHub commits
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setStatus("Loading products...");
         setProgress(30);
-        
-        // Fetch products directly from Supabase 'Products' table
-        const { data: dbProducts, error: prodError } = await supabase.from('Products').select('*');
-        if (prodError) throw prodError;
-        if (!cancelled) setProducts(dbProducts || []);
+        const p = await api("/products");
+        if (!cancelled) setProducts(p);
 
         try {
           const s = await api("/settings");
           if (!cancelled) setCurrencySymbol(s.currencySymbol || "$");
         } catch (e) {
-          // non-critical — keep the default "$" if this fails
+          // keep default "$"
         }
 
         setProgress(60);
@@ -76,7 +72,10 @@ export default function App() {
               api("/orders/mine", { token: userToken }),
               api("/footprints/mine", { token: userToken }),
             ]);
-            if (!cancelled) { setMyOrders(mine); setFootprint(fp); }
+            if (!cancelled) {
+              setMyOrders(mine);
+              setFootprint(fp);
+            }
           } catch (e) {
             setUserToken(null);
             setCurrentUser(null);
@@ -89,7 +88,10 @@ export default function App() {
                 api("/orders", { token: adminToken }),
                 api("/bugs", { token: adminToken }),
               ]);
-              if (!cancelled) { setOrders(ord); setBugReports(bugs); }
+              if (!cancelled) {
+                setOrders(ord);
+                setBugReports(bugs);
+              }
             } else {
               const bugs = await api("/bugs", { token: adminToken });
               if (!cancelled) setBugReports(bugs);
@@ -103,26 +105,31 @@ export default function App() {
         setProgress(100);
         setStatus("Ready");
       } catch (e) {
-        setStatus("Could not load products from database.");
+        setStatus("Could not reach the store. Is the backend running?");
       } finally {
-        setTimeout(() => { if (!cancelled) setLoading(false); }, 350);
+        setTimeout(() => {
+          if (!cancelled) setLoading(false);
+        }, 350);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const refreshProducts = useCallback(async () => {
-    const { data } = await supabase.from('Products').select('*');
-    if (data) setProducts(data);
-  }, []);
+  const refreshProducts = useCallback(async () => setProducts(await api("/products")), []);
 
   const openProduct = (product) => {
     setActiveProduct(product);
     const entry = { productId: product.id, gender: product.gender, ts: Date.now() };
     setFootprint((f) => [...f, entry].slice(-50));
     if (userToken) {
-      api("/footprints", { method: "POST", token: userToken, body: { productId: product.id, gender: product.gender } }).catch(() => {});
+      api("/footprints", {
+        method: "POST",
+        token: userToken,
+        body: { productId: product.id, gender: product.gender },
+      }).catch(() => {});
     }
   };
 
@@ -130,9 +137,13 @@ export default function App() {
   const removeFromCart = (idx) => setCart((c) => c.filter((_, i) => i !== idx));
 
   const handleAuth = async ({ mode: authMode, email, password, name, phone, location }) => {
-    const data = authMode === "signup"
-      ? await api("/auth/signup", { method: "POST", body: { name, email, password, phone, location } })
-      : await api("/auth/login", { method: "POST", body: { email, password } });
+    const data =
+      authMode === "signup"
+        ? await api("/auth/signup", {
+            method: "POST",
+            body: { name, email, password, phone, location },
+          })
+        : await api("/auth/login", { method: "POST", body: { email, password } });
     setUserToken(data.token);
     setCurrentUser(data.user);
     const [mine, fp] = await Promise.all([
@@ -151,13 +162,13 @@ export default function App() {
     setCurrentAdmin(data.admin);
     if (data.admin.role === "full") {
       const [ord, bugs] = await Promise.all([
-        api("/orders", { token: adminToken }),
-        api("/bugs", { token: adminToken }),
+        api("/orders", { token: data.token }),
+        api("/bugs", { token: data.token }),
       ]);
       setOrders(ord);
       setBugReports(bugs);
     } else {
-      setBugReports(await api("/bugs", { token: adminToken }));
+      setBugReports(await api("/bugs", { token: data.token }));
     }
     setView({ name: "admin" });
   };
@@ -175,7 +186,12 @@ export default function App() {
       method: "POST",
       token: userToken,
       body: {
-        items: cart.map((c) => ({ productId: c.productId, size: c.size, color: c.color, qty: c.qty })),
+        items: cart.map((c) => ({
+          productId: c.productId,
+          size: c.size,
+          color: c.color,
+          qty: c.qty,
+        })),
         phone,
         location,
         termsAccepted: true,
@@ -188,62 +204,97 @@ export default function App() {
   };
 
   const updateProfile = async (phone, location) => {
-    const data = await api("/auth/profile", { method: "PATCH", token: userToken, body: { phone, location } });
+    const data = await api("/auth/profile", {
+      method: "PATCH",
+      token: userToken,
+      body: { phone, location },
+    });
     setCurrentUser(data.user);
     return data.user;
   };
 
-  const submitBug = (message) => api("/bugs", { method: "POST", token: userToken, body: { message } });
+  const submitBug = (message) =>
+    api("/bugs", { method: "POST", token: userToken, body: { message } });
 
   const addProduct = async (product) => {
-    const { data, error } = await supabase.from('Products').insert([product]).select();
-    if (error) {
-      console.error("Error adding product:", error.message);
-      return;
-    }
-    if (data && data[0]) {
-      setProducts((p) => [data[0], ...p]);
-    }
+    const created = await api("/products", {
+      method: "POST",
+      token: adminToken,
+      body: product,
+    });
+    setProducts((p) => [created, ...p]);
   };
 
   const updateProduct = async (id, patch) => {
-    const { data, error } = await supabase.from('Products').update(patch).eq('id', id).select();
-    if (error) {
-      console.error("Error updating product:", error.message);
-      return;
-    }
-    if (data && data[0]) {
-      const updated = data[0];
-      setProducts((list) => list.map((p) => (p.id === id ? updated : p)));
-    }
+    const updated = await api(`/products/${id}`, {
+      method: "PATCH",
+      token: adminToken,
+      body: patch,
+    });
+    setProducts((list) => list.map((p) => (p.id === id ? updated : p)));
   };
 
   const deleteProduct = async (id) => {
-    const { error } = await supabase.from('Products').delete().eq('id', id);
-    if (error) {
-      console.error("Error deleting product:", error.message);
-      return;
-    }
+    await api(`/products/${id}`, { method: "DELETE", token: adminToken });
     setProducts((list) => list.filter((p) => p.id !== id));
   };
 
   const updateOrderStatus = async (id, status) => {
-    await api(`/orders/${id}/status`, { method: "PATCH", token: adminToken, body: { status } });
+    await api(`/orders/${id}/status`, {
+      method: "PATCH",
+      token: adminToken,
+      body: { status },
+    });
     setOrders((list) => list.map((o) => (o.id === id ? { ...o, status } : o)));
   };
 
   const updateCurrency = async (symbol) => {
-    const data = await api("/settings", { method: "PATCH", token: adminToken, body: { currencySymbol: symbol } });
+    const data = await api("/settings", {
+      method: "PATCH",
+      token: adminToken,
+      body: { currencySymbol: symbol },
+    });
     setCurrencySymbol(data.currencySymbol);
   };
 
-  if (!ready || loading) return <LoadingScreen theme={theme} progress={progress} status={status} />;
+  if (!ready || loading)
+    return <LoadingScreen theme={theme} progress={progress} status={status} />;
 
-  const footerLinkStyle = { background: "none", border: "none", color: "inherit", cursor: "pointer", fontFamily: "inherit", fontSize: 12, textDecoration: "underline", padding: 0 };
+  const footerLinkStyle = {
+    background: "none",
+    border: "none",
+    color: "inherit",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    fontSize: 12,
+    textDecoration: "underline",
+    padding: 0,
+  };
 
   return (
-    <div style={{ minHeight: "100vh", background: theme.bg, color: theme.text, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif", transition: "background .2s ease, color .2s ease" }}>
-      <NavBar theme={theme} mode={mode} setMode={setMode} view={view} setView={setView} cartCount={cart.length} currentUser={currentUser} currentAdmin={currentAdmin} onLogout={handleLogout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: theme.bg,
+        color: theme.text,
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        transition: "background .2s ease, color .2s ease",
+      }}
+    >
+      <NavBar
+        theme={theme}
+        mode={mode}
+        setMode={setMode}
+        view={view}
+        setView={setView}
+        cartCount={cart.length}
+        currentUser={currentUser}
+        currentAdmin={currentAdmin}
+        onLogout={handleLogout}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+      />
 
       {currentAdmin ? (
         <AdminDashboard
@@ -261,13 +312,61 @@ export default function App() {
         />
       ) : (
         <>
-          {view.name === "shop" && <ShopView products={products} theme={theme} view={view} setView={setView} openProduct={openProduct} footprint={footprint} currencySymbol={currencySymbol} />}
+          {view.name === "shop" && (
+            <ShopView
+              products={products}
+              theme={theme}
+              view={view}
+              setView={setView}
+              openProduct={openProduct}
+              footprint={footprint}
+              currencySymbol={currencySymbol}
+            />
+          )}
           {view.name === "about" && <AboutView theme={theme} />}
-          {view.name === "cart" && <CartView cart={cart} theme={theme} setView={setView} removeFromCart={removeFromCart} currentUser={currentUser} currencySymbol={currencySymbol} />}
-          {view.name === "login" && <LoginView theme={theme} setView={setView} onLogin={handleAuth} redirectTo={view.redirectTo} />}
-          {view.name === "checkout" && currentUser && <CheckoutView theme={theme} cart={cart} placeOrder={placeOrder} setView={setView} currencySymbol={currencySymbol} currentUser={currentUser} updateProfile={updateProfile} />}
-          {view.name === "account" && currentUser && <AccountView theme={theme} currentUser={currentUser} myOrders={myOrders} submitBug={submitBug} onLogout={handleLogout} currencySymbol={currencySymbol} updateProfile={updateProfile} />}
-          {view.name === "admin-login" && <AdminLoginView theme={theme} onAdminLogin={handleAdminLogin} />}
+          {view.name === "cart" && (
+            <CartView
+              cart={cart}
+              theme={theme}
+              setView={setView}
+              removeFromCart={removeFromCart}
+              currentUser={currentUser}
+              currencySymbol={currencySymbol}
+            />
+          )}
+          {view.name === "login" && (
+            <LoginView
+              theme={theme}
+              setView={setView}
+              onLogin={handleAuth}
+              redirectTo={view.redirectTo}
+            />
+          )}
+          {view.name === "checkout" && currentUser && (
+            <CheckoutView
+              theme={theme}
+              cart={cart}
+              placeOrder={placeOrder}
+              setView={setView}
+              currencySymbol={currencySymbol}
+              currentUser={currentUser}
+              updateProfile={updateProfile}
+            />
+          )}
+          {view.name === "account" && currentUser && (
+            <AccountView
+              theme={theme}
+              currentUser={currentUser}
+              myOrders={myOrders}
+              submitBug={submitBug}
+              onLogout={handleLogout}
+              currencySymbol={currencySymbol}
+              updateProfile={updateProfile}
+            />
+          )}
+          {view.name === "admin-login" && (
+            <AdminLoginView theme={theme} onAdminLogin={handleAdminLogin} />
+          )}
           {view.name === "terms-of-use" && <TermsOfUsePage />}
           {view.name === "terms-and-conditions" && <TermsAndConditionsPage />}
           {view.name === "privacy-policy" && <PrivacyPolicyPage />}
@@ -275,20 +374,60 @@ export default function App() {
         </>
       )}
 
-      {activeProduct && <ProductDetail product={activeProduct} theme={theme} onClose={() => setActiveProduct(null)} addToCart={addToCart} currencySymbol={currencySymbol} />}
+      {activeProduct && (
+        <ProductDetail
+          product={activeProduct}
+          theme={theme}
+          onClose={() => setActiveProduct(null)}
+          addToCart={addToCart}
+          currencySymbol={currencySymbol}
+        />
+      )}
 
-      <div style={{ borderTop: `1px solid ${theme.border}`, marginTop: 40, padding: "26px 20px", textAlign: "center", fontSize: 12, opacity: 0.55 }}>
+      <div
+        style={{
+          borderTop: `1px solid ${theme.border}`,
+          marginTop: 40,
+          padding: "26px 20px",
+          textAlign: "center",
+          fontSize: 12,
+          opacity: 0.55,
+        }}
+      >
         <div style={{ marginBottom: 10 }}>
           THATHA LENTO — questions? message us on{" "}
-          <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" style={{ color: theme.accent }}>WhatsApp</a>.
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: theme.accent }}
+          >
+            WhatsApp
+          </a>
+          .
         </div>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-          <button style={footerLinkStyle} onClick={() => setView({ name: "terms-of-use" })}>Terms of Use</button>
-          <button style={footerLinkStyle} onClick={() => setView({ name: "terms-and-conditions" })}>Terms &amp; Conditions</button>
-          <button style={footerLinkStyle} onClick={() => setView({ name: "privacy-policy" })}>Privacy Policy</button>
-          <button style={footerLinkStyle} onClick={() => setView({ name: "developer" })}>Developer</button>
+        <div
+          style={{
+            display: "flex",
+            gap: 14,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <button style={footerLinkStyle} onClick={() => setView({ name: "terms-of-use" })}>
+            Terms of Use
+          </button>
+          <button style={footerLinkStyle} onClick={() => setView({ name: "terms-and-conditions" })}>
+            Terms &amp; Conditions
+          </button>
+          <button style={footerLinkStyle} onClick={() => setView({ name: "privacy-policy" })}>
+            Privacy Policy
+          </button>
+          <button style={footerLinkStyle} onClick={() => setView({ name: "developer" })}>
+            Developer
+          </button>
         </div>
       </div>
     </div>
   );
-}
+    }
