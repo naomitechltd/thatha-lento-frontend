@@ -1,10 +1,119 @@
-import React, { useState } from "react";
-import { X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Star } from "lucide-react";
 import { ProductImage } from "../components/media";
 import { Button, inputStyle } from "../components/ui";
-import { money } from "../lib/api";
+import { money, api } from "../lib/api";
 
-export function ProductDetail({ product, theme, onClose, addToCart, currencySymbol }) {
+function StarRow({ value, onChange, size = 18 }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={onChange ? () => onChange(n) : undefined}
+          style={{ background: "none", border: "none", padding: 0, cursor: onChange ? "pointer" : "default", lineHeight: 0 }}
+        >
+          <Star size={size} fill={n <= value ? "#E8B84B" : "none"} color="#E8B84B" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProductReviews({ theme, product, myOrders, userToken, currentUser }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [myRating, setMyRating] = useState(0);
+  const [myComment, setMyComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const hasPurchased = (myOrders || []).some((o) =>
+    (o.items || []).some((it) => it.productId === product.id)
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    api(`/reviews/${product.id}`)
+      .then((data) => { if (!cancelled) setReviews(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [product.id]);
+
+  const submitReview = async () => {
+    setError("");
+    if (myRating < 1) { setError("Pick a star rating first."); return; }
+    setBusy(true);
+    try {
+      const saved = await api("/reviews", {
+        method: "POST",
+        token: userToken,
+        body: { productId: product.id, rating: myRating, comment: myComment.trim() },
+      });
+      setReviews((rs) => [saved, ...rs.filter((r) => r.userName !== saved.userName)]);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const average = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+
+  return (
+    <div style={{ marginTop: 26, borderTop: `1px solid ${theme.border}`, paddingTop: 20 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Reviews</div>
+
+      {!loading && reviews.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <StarRow value={Math.round(average)} />
+          <span style={{ fontSize: 12.5, opacity: 0.7 }}>{average.toFixed(1)} · {reviews.length} review{reviews.length === 1 ? "" : "s"}</span>
+        </div>
+      )}
+      {!loading && reviews.length === 0 && (
+        <div style={{ fontSize: 12.5, opacity: 0.6, marginBottom: 16 }}>No reviews yet.</div>
+      )}
+
+      {currentUser && hasPurchased && (
+        <div style={{ marginBottom: 20, border: `1px solid ${theme.border}`, borderRadius: 4, padding: 14 }}>
+          <div style={{ fontSize: 12.5, opacity: 0.7, marginBottom: 8 }}>Leave a review</div>
+          <StarRow value={myRating} onChange={setMyRating} size={22} />
+          <textarea
+            rows={3}
+            placeholder="What did you think? (optional)"
+            style={{ ...inputStyle(theme), resize: "vertical", marginTop: 10 }}
+            value={myComment}
+            onChange={(e) => setMyComment(e.target.value)}
+          />
+          {error && <div style={{ color: theme.danger, fontSize: 12, marginTop: 6 }}>{error}</div>}
+          <div style={{ marginTop: 10 }}>
+            <Button theme={theme} onClick={submitReview} disabled={busy}>{busy ? "Saving..." : "Submit review"}</Button>
+            {saved && <span style={{ color: theme.accent, fontSize: 12.5, marginLeft: 10 }}>Saved.</span>}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {reviews.map((r) => (
+          <div key={r.id}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StarRow value={r.rating} size={14} />
+              <span style={{ fontSize: 12, opacity: 0.6 }}>{r.userName || "Customer"}</span>
+            </div>
+            {r.comment && <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>{r.comment}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ProductDetail({ product, theme, onClose, addToCart, currencySymbol, myOrders, userToken, currentUser }) {
   const [size, setSize] = useState(product.sizes[0] || "");
   const [color, setColor] = useState(product.colors[0] || "");
   const [qty, setQty] = useState(1);
@@ -75,6 +184,8 @@ export function ProductDetail({ product, theme, onClose, addToCart, currencySymb
             {product.stock === 0 ? "Sold out" : "Add to bag"}
           </Button>
         </div>
+
+        <ProductReviews theme={theme} product={product} myOrders={myOrders} userToken={userToken} currentUser={currentUser} />
       </div>
     </div>
   );

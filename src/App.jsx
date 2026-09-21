@@ -384,6 +384,9 @@ export default function App() {
           onClose={() => setActiveProduct(null)}
           addToCart={addToCart}
           currencySymbol={currencySymbol}
+          myOrders={myOrders}
+          userToken={userToken}
+          currentUser={currentUser}
         />
       )}
 
