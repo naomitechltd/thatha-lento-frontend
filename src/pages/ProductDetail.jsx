@@ -17,7 +17,7 @@ export function ProductDetail({ product, theme, onClose, addToCart, currencySymb
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: theme.text }}><X size={20} /></button>
         </div>
-        <ProductImage product={{ ...product, imageUrl: displayImage }} theme={theme} height={220} />
+        <ProductImage product={{ ...product, imageUrl: displayImage }} theme={theme} height={420} fit="contain" />
         <div style={{ marginTop: 16, fontSize: 22, fontFamily: "'Iowan Old Style', Georgia, serif" }}>{product.name}</div>
         <div style={{ opacity: 0.7, fontSize: 13.5, marginTop: 6 }}>{product.description}</div>
         <div style={{ marginTop: 12, fontSize: 17 }}>

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { uploadImageFile } from "../lib/api";
 import { inputStyle } from "./ui";
 
-export function ProductImage({ product, theme, height = 260 }) {
+export function ProductImage({ product, theme, height = 260, fit = "cover" }) {
   const [failed, setFailed] = useState(false);
   if (product.imageUrl && !failed) {
     return (
@@ -10,7 +10,7 @@ export function ProductImage({ product, theme, height = 260 }) {
         src={product.imageUrl}
         alt={product.name}
         onError={() => setFailed(true)}
-        style={{ height, width: "100%", objectFit: "cover", border: `1px solid ${theme.border}`, display: "block" }}
+        style={{ height, width: "100%", objectFit: fit, background: fit === "contain" ? theme.bgSunken : undefined, border: `1px solid ${theme.border}`, display: "block" }}
       />
     );
   }
