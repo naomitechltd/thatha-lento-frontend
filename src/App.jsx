@@ -59,7 +59,7 @@ export default function App() {
 
         try {
           const s = await api("/settings");
-          if (!cancelled) setCurrencySymbol(s.currencySymbol || "$");
+          if (!cancelled) setCurrencySymbol(s.currency_symbol || "$");
         } catch (e) {
           // keep default "$"
         }
@@ -252,12 +252,12 @@ export default function App() {
   };
 
   const updateCurrency = async (symbol) => {
-    const data = await api("/settings", {
+    const data = await api("/settings/currency_symbol", {
       method: "PATCH",
       token: adminToken,
-      body: { currencySymbol: symbol },
+      body: { value: symbol },
     });
-    setCurrencySymbol(data.currencySymbol);
+    setCurrencySymbol(data.value);
   };
 
   if (!ready || loading)
