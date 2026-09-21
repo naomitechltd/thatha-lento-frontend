@@ -111,12 +111,12 @@ export function AdminDashboard({ theme, currentAdmin, products, orders, bugRepor
           {orders.map((o) => (
             <div key={o.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, flexWrap: "wrap", gap: 8 }}>
-                <span>{o.recipient_name || o.user_email}</span>
-                <span>{new Date(o.created_at).toLocaleString()}</span>
+                <span>{o.recipientName || o.userEmail}</span>
+                <span>{new Date(o.createdAt).toLocaleString()}</span>
                 <span>{money(currencySymbol, o.total)}</span>
               </div>
               <div style={{ fontSize: 12.5, opacity: 0.75, marginTop: 4 }}>
-                {o.user_email} · Phone: {o.phone} · Delivering to: {o.location}
+                {o.userEmail} · Phone: {o.phone} · Delivering to: {o.location}
               </div>
               <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 6 }}>
                 {o.items.map((it, i) => <div key={i}>{it.name} — Colour: {it.color} · Size: {it.size} · Qty: {it.qty}</div>)}
@@ -140,8 +140,8 @@ export function AdminDashboard({ theme, currentAdmin, products, orders, bugRepor
           {bugReports.map((b) => (
             <div key={b.id} style={{ border: `1px solid ${theme.border}`, borderRadius: 4, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, opacity: 0.7 }}>
-                <span>{b.user_email}</span>
-                <span>{new Date(b.created_at).toLocaleString()}</span>
+                <span>{b.userEmail}</span>
+                <span>{new Date(b.createdAt).toLocaleString()}</span>
               </div>
               <div style={{ fontSize: 13.5, marginTop: 6 }}>{b.message}</div>
             </div>
