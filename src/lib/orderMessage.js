@@ -6,8 +6,8 @@ export function buildOrderMessage(order, currencySymbol) {
   const lines = [];
   lines.push("Hi Thatha Lento, here is my proof of payment.");
   lines.push("");
-  lines.push(`Order date: ${new Date(order.created_at).toLocaleString()}`);
-  lines.push(`Name: ${order.recipient_name || ""}`);
+  lines.push(`Order date: ${new Date(order.createdAt).toLocaleString()}`);
+  lines.push(`Name: ${order.recipientName || ""}`);
   lines.push(`Phone: ${order.phone}`);
   lines.push(`Location: ${order.location}`);
   lines.push("");

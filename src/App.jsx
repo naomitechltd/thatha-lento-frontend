@@ -188,6 +188,8 @@ export default function App() {
       body: {
         items: cart.map((c) => ({
           productId: c.productId,
+          name: c.name,
+          price: c.price,
           size: c.size,
           color: c.color,
           qty: c.qty,
