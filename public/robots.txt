@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://thatha-lento-frontend2.vercel.app/sitemap.xml
