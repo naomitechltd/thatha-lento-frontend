@@ -25,8 +25,12 @@ export function ShopView({ products, theme, view, setView, openProduct, footprin
       {recommended.length > 0 && (
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 12.5, letterSpacing: "0.04em", opacity: 0.7, marginBottom: 12 }}>Picked for you, based on what you've viewed</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: 18 }}>
-            {recommended.map((p) => <ProductCard key={p.id} product={p} theme={theme} onOpen={openProduct} currencySymbol={currencySymbol} />)}
+          <div style={{ display: "flex", gap: 18, overflowX: "auto", paddingBottom: 8, WebkitOverflowScrolling: "touch" }}>
+            {recommended.map((p) => (
+              <div key={p.id} style={{ flex: "0 0 160px" }}>
+                <ProductCard product={p} theme={theme} onOpen={openProduct} currencySymbol={currencySymbol} />
+              </div>
+            ))}
           </div>
         </div>
       )}
