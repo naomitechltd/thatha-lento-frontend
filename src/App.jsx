@@ -195,6 +195,7 @@ export default function App() {
         phone,
         location,
         termsAccepted: true,
+        total: cart.reduce((sum, c) => sum + c.price * c.qty, 0),
       },
     });
     setMyOrders((o) => [order, ...o]);
@@ -204,7 +205,7 @@ export default function App() {
   };
 
   const updateProfile = async (phone, location) => {
-    const data = await api("/auth/profile", {
+    const data = await api("/auth/me", {
       method: "PATCH",
       token: userToken,
       body: { phone, location },
