@@ -1,13 +1,29 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { uploadImageFile } from "../lib/api";
 import { inputStyle } from "./ui";
 
+// Cloudinary lets us ask for a resized, auto-compressed, auto-format version
+// of an image just by editing its URL (no re-upload needed). This keeps
+// original full-quality uploads intact while serving something much lighter.
+function optimizedUrl(url, width) {
+  if (!url || !url.includes("res.cloudinary.com") || !url.includes("/upload/")) return url;
+  return url.replace("/upload/", `/upload/w_${width},q_auto,f_auto/`);
+}
+
 export function ProductImage({ product, theme, height = 260, fit = "cover" }) {
   const [failed, setFailed] = useState(false);
+
+  // Reset the "failed to load" flag whenever we're asked to show a
+  // different image (e.g. switching colour swatches) — otherwise one bad
+  // image permanently freezes every future colour on the placeholder box.
+  useEffect(() => {
+    setFailed(false);
+  }, [product.imageUrl]);
+
   if (product.imageUrl && !failed) {
     return (
       <img
-        src={product.imageUrl}
+        src={optimizedUrl(product.imageUrl, Math.round(height * 2))}
         alt={product.name}
         onError={() => setFailed(true)}
         style={{ height, width: "100%", objectFit: fit, background: fit === "contain" ? theme.bgSunken : undefined, border: `1px solid ${theme.border}`, display: "block" }}
